@@ -1,0 +1,191 @@
+package com.android.example.moviesapp.utilities;
+
+import android.accessibilityservice.GestureDescription;
+import android.content.Context;
+import android.icu.text.StringSearch;
+import android.net.Uri;
+import android.util.Log;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Scanner;
+
+public class NetworkUtils {
+
+    final static String TMDB_BASE_URL =
+            "https://api.themoviedb.org/3/discover/movie";
+    final static String PARAM_QUERY =
+            "";
+    final static String PARAM_SORT =
+            "sort_by";
+
+    final static String RELASE_DATE_gte =
+            "primary_release_date.gte";
+    final static String gte_date =
+            "2017-01-01";
+
+    final static String RELASE_DATE_lte =
+            "primary_release_date.lte";
+    final static String lte_date =
+            "2017-02-10";
+
+    final static String MIN_VOTE_COUNT =
+            "vote_count.gte";
+
+    final static String API_KEY =
+            "api_key";
+    final static String personal_Key=
+            "663f48fa3bfbc2d04935670ddcb2b912";
+
+    // https://api.themoviedb.org/3/discover/movie?primary_release_date.gte=2014-09-15&primary_release_date.lte=2014-10-22&api_key=663f48fa3bfbc2d04935670ddcb2b912
+
+    public static URL buildUrl() {
+        Uri builtUri = Uri.parse(TMDB_BASE_URL).buildUpon()
+                .appendQueryParameter(PARAM_SORT, GlobalVariables.sort_by)
+                .appendQueryParameter(MIN_VOTE_COUNT, "100")  // at least 100 votes.
+                .appendQueryParameter(API_KEY, personal_Key)
+                .build();
+
+        URL url = null;
+        try {
+            url = new URL(builtUri.toString());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        return url;
+    }
+
+
+    public static String getResponseFromHttpUrl (URL url) throws IOException {
+        HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+
+        try {
+            InputStream in = urlConnection.getInputStream();
+
+            Scanner scanner = new Scanner(in);
+            scanner.useDelimiter("\\A");
+
+            boolean hasInput = scanner.hasNext();
+            if (hasInput) {
+                return scanner.next();
+            } else {
+                Log.d("NetworkUtils", "Internet Error, failed to retreive response");
+                return null;
+            }
+        } finally {
+            urlConnection.disconnect();
+        }
+    }
+
+
+    public static String[] getSimpleMovieStringsFromJson(Context context, String rawJsonString)
+        throws JSONException {
+
+        /* Here is defined the resutls Array in the JSONstring, it is going to be
+         * splitted into movie objects.
+         */
+        final String TMDB_RESULTS = "results";
+
+
+        /* Error Message  */
+        final String TMDB_ERROR_CODE = "status_code";
+
+
+        /* JSON names of the movie atributes */
+
+        final String TMDB_TITLE = "title";
+        final String TMDB_ORIGINAL_TITLE = "original_title";
+        final String TMDB_RELEASE_DATE = "release_date";
+        final String TMDB_RATING = "vote_average";
+        final String TMDB_POSTER_PATH = "poster_path";
+        final String TMDB_OVERVIEW = "overview";
+
+        /* some temporal variables to store each movie data */
+        String title;
+        String originalTitle;
+        String releaseDate;
+        String rating;
+        String posterPath;
+        String overview;
+
+
+        /* This string array to hold each movie data */
+        String[] parsedMovieData = null;
+
+        /*   VERY IMPORTANT!!!
+         *   Here we create the main JSON object directly from the URL response.
+         *   But we are interested in the array where are stored the movie details.
+         *   This array is created few lines below.
+         */
+        JSONObject moviesJson = new JSONObject(rawJsonString);
+
+        /* But we need to be sure that the JSONObject has the list, if we have errors we must have
+          * to do the error handling,
+          */
+        if (moviesJson.has(TMDB_ERROR_CODE)) {
+            int errorCode = moviesJson.getInt(TMDB_ERROR_CODE);
+
+            switch (errorCode) {
+                case HttpURLConnection.HTTP_OK:
+                    break;
+                case HttpURLConnection.HTTP_NOT_FOUND:
+                    /* Location invalid */
+                    return null;
+                default:
+                    /* Server probably down */
+                    return null;
+            }
+
+        }
+
+        /* If we have not errors, we can proceed. Now we check the array in the JSON object.
+         * In order to do this, we create a JSONArray object.
+         */
+        JSONArray moviesArray = moviesJson.getJSONArray(TMDB_RESULTS);
+
+        int arraySize = moviesArray.length();
+
+        parsedMovieData = new String[arraySize];
+
+        GlobalVariables.all_postersPaths   = new String[arraySize];
+        GlobalVariables.all_titles         = new String[arraySize];
+        GlobalVariables.all_originalTitles = new String[arraySize];
+        GlobalVariables.all_releaseDates   = new String[arraySize];
+        GlobalVariables.all_ratings        = new String[arraySize];
+        GlobalVariables.all_overviews      = new String[arraySize];
+
+
+        for (int i = 0; i < moviesArray.length(); i++) {
+            JSONObject eachMovie = moviesArray.getJSONObject(i);
+
+            title         = eachMovie.getString(TMDB_TITLE);
+            originalTitle = eachMovie.getString(TMDB_ORIGINAL_TITLE);
+            releaseDate   = eachMovie.getString(TMDB_RELEASE_DATE);
+            rating        = eachMovie.getString(TMDB_RATING);
+            posterPath    = eachMovie.getString(TMDB_POSTER_PATH);
+            overview      = eachMovie.getString(TMDB_OVERVIEW);
+
+
+            parsedMovieData[i] = title + " " + originalTitle + " " + releaseDate
+                    + " " + rating + " " + posterPath + " " + overview;
+
+            GlobalVariables.all_postersPaths[i]   =
+                    "https://image.tmdb.org/t/p/w185_and_h278_bestv2" + posterPath;
+            GlobalVariables.all_titles[i]         = title;
+            GlobalVariables.all_originalTitles[i] = originalTitle;
+            GlobalVariables.all_releaseDates[i]   = releaseDate;
+            GlobalVariables.all_ratings[i]        = rating;
+            GlobalVariables.all_overviews[i]      = overview;
+        }
+
+        return parsedMovieData;
+    }
+}

@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">MoviesApp</string>
+
+    <string name="menu_sort_by_popularity">Sort By Popularity</string>
+    <string name="menu_sort_by_rating">Sort by Rating</string>
+
+    <string name="search_by_popular">Most popular movies</string>
+    <string name="search_by_rating">Best rated Movies
+                                  \n(At least 100 votes)</string>
+
+    <string name="error_message">Oops!
+        \n
+        \nSomething is going wrong.
+        \nPlease check the internet connection and try again.
+        \n
+        \n; )</string>
+
+
+
+</resources>
+
